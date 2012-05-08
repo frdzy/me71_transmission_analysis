@@ -79,6 +79,10 @@ function me71transmission
   % You will want to change these values
   GearRatio = 1;
   mu = 1;
+
+  % For comparative analysis
+  GearRatioVector = 1:12;
+  muVector = ones(1, 12) * 0.7;
   %%%%%%%%%
 
   RatedV = 24;
@@ -107,6 +111,30 @@ function me71transmission
   plotAccel(GearRatio, mu)
   plotProfiles(GearRatio, mu)
   plotEfficiency(GearRatio, [.5,.6,.7,.8])
+
+
+  %%%%%%%%%%%%
+  % Comparative analysis
+
+  % Plots scores for various efficiencies and gear ratios
+  plotScores(1:.1:10,[.3:.02:1.0])
+                                   
+  plotMaxSpeed(GearRatioVector, muVector)
+  plotFastest250(GearRatioVector, muVector)
+
+  % For a given mu, the following code compares the shifting score with the 
+  % non-shifting score.
+  SingleRatioOf7 = TransmissionScore(7, mu)
+
+  N = MaxSpeed(4, mu) / RPMtoRAD;
+  T = TimeTo250RPM(10, mu);
+  IdealShiftingScore = N / T
+
+  N = MaxSpeed(4, mu) / RPMtoRAD;
+  T = TimeTo250RPM(12,mu);
+  OurShiftingScore = N / T
+
+
 
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -296,6 +324,42 @@ function me71transmission
     xlabel('Gear Ratio');
     ylabel('Score');
     title('Scores for various Gear Ratios and Efficiencies');
+  end
+
+
+  function plotMaxSpeed(GearRatios,mus)
+    % First plot Alex created for calculating shift points
+
+    figure('Name','Max speeds for various gear ratios')
+    hold on
+    for i = 1:length(mus)
+      for j = 1:length(GearRatios)
+        MaxSpeeds(j) = MaxSpeed(GearRatios(j), mus(i));
+      end
+      plot(GearRatios, MaxSpeeds)
+    end
+
+    xlabel('Gear Ratio');
+    ylabel('Max Speed');
+    title('Max Speed as a Function of the Gear Ratio');
+  end
+
+
+  function plotFastest250(GearRatios,mus)
+    % Second plot Alex created for calculating shift points
+
+    figure('Name','Times to 250rpm for various gear ratios')
+    hold on
+    for i = 1:length(mus)
+      for j = 1:length(GearRatios)
+        timeTo250(j) = TimeTo250RPM(GearRatios(j), mus(i));
+      end
+      plot(GearRatios, timeTo250)
+    end
+
+    xlabel('Gear Ratio');
+    ylabel('Time to 250 RPM');
+    title('Time to 250RPM as a Function of the Gear Ratio');
   end
 
 end
