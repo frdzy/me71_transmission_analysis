@@ -78,11 +78,11 @@ function me71transmission
   %%%%%%%%%
   % You will want to change these values
   GearRatio = 1;
-  mu = 1;
+  mu = 0.7;
 
   % For comparative analysis
-  GearRatioVector = 1:12;
-  muVector = ones(1, 12) * 0.7;
+  gearRatioVector = 1:.1:14;
+  muVector = .5:.05:1.0;
   %%%%%%%%%
 
   RatedV = 24;
@@ -106,34 +106,42 @@ function me71transmission
   MotorInertia = 0.0000065;
   %%%%%%%%%%%%
 
-  plotDrag()
-  plotTorque(GearRatio)
-  plotAccel(GearRatio, mu)
-  plotProfiles(GearRatio, mu)
-  plotEfficiency(GearRatio, [.5,.6,.7,.8])
+  % plotDrag()
+  % plotTorque(GearRatio)
+  % plotAccel(GearRatio, mu)
+  % plotProfiles(GearRatio, mu)
+  % plotEfficiency(GearRatio, [.5,.6,.7,.8])
 
 
   %%%%%%%%%%%%
   % Comparative analysis
 
   % Plots scores for various efficiencies and gear ratios
-  plotScores(1:.1:10,[.3:.02:1.0])
+  plotScores(gearRatioVector, muVector)
                                    
-  plotMaxSpeed(GearRatioVector, muVector)
-  plotFastest250(GearRatioVector, muVector)
+  [bestMaxSpeedRatios, maxSpeeds] = findBest(muVector, gearRatioVector, @MaxSpeed, @gt)
+  plotMaxSpeed(bestMaxSpeedRatios, maxSpeeds)
+
+  [bestMinTimeRatios, minTimes] = findBest(muVector, gearRatioVector, @TimeTo250RPM, @lt)
+  plotFastest250(bestMinTimeRatios, minTimes)
 
   % For a given mu, the following code compares the shifting score with the 
   % non-shifting score.
-  SingleRatioOf7 = TransmissionScore(7, mu)
+  [bestFixedRatios, bestScores] = findBest(muVector, gearRatioVector, @TransmissionScore, @gt)
 
-  N = MaxSpeed(4, mu) / RPMtoRAD;
-  T = TimeTo250RPM(10, mu);
-  IdealShiftingScore = N / T
+  for i = 1:length(muVector)
+    mu = muVector(i);
+    N = MaxSpeed(bestMaxSpeedRatios(i), mu) / RPMtoRAD;
+    T = TimeTo250RPM(bestMinTimeRatios(i), mu);
+    IdealShiftingScore = N / T;
 
-  N = MaxSpeed(4, mu) / RPMtoRAD;
-  T = TimeTo250RPM(12,mu);
-  OurShiftingScore = N / T
+    N = MaxSpeed(4, mu) / RPMtoRAD;
+    T = TimeTo250RPM(12,mu);
+    OurShiftingScores(i) = N / T;
+  end
 
+  % Matrix of improvements with rows being mu(shifting) and columns being mu(fixed)
+  Improvements = (transpose(OurShiftingScores)) * (bestScores .^ (-1))
 
 
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -327,16 +335,50 @@ function me71transmission
   end
 
 
-  function plotMaxSpeed(GearRatios,mus)
+  function [best_y_x, best_z_yx] = findBest(x_, y_, z_yx, comparator)
+    % Helper function that takes in a function z_xy(x, y),
+    % vectors x_ and y_, and iterates over x_ and y_ respectively
+    % to optimize z_xy using comparator. The results of the
+    % optimization are stored in two output vectors, the first
+    % that finds the value of y_ that optimizes z given an x, and
+    % the second that holds that optimized z for the corresponding
+    % index of the given x, i.e. z(x, arg_{y_j} max z(x, y_j))
+    
+    for i = 1:length(x_)
+      for j = 1:length(y_)
+        if (exist('best_z_yx') == 0) || (length(best_z_yx) < i)
+          best_z_yx(i) = z_yx(y_(j), x_(i));
+          best_y_x(i) = y_(j);
+        else
+          if (comparator(z_yx(y_(j), x_(i)), best_z_yx(i)) == 1)
+            best_z_yx(i) = z_yx(y_(j), x_(i));
+            best_y_x(i) = y_(j);
+          end
+        end
+      end
+    end
+
+  end
+
+
+  function [result] = gt(a, b)
+    result = a > b;
+  end
+
+ 
+  function [result] = lt(a, b)
+    result = a < b;
+  end
+
+
+  function plotMaxSpeed(bestRatios, maxSpeeds)
     % First plot Alex created for calculating shift points
 
     figure('Name','Max speeds for various gear ratios')
     hold on
-    for i = 1:length(mus)
-      for j = 1:length(GearRatios)
-        MaxSpeeds(j) = MaxSpeed(GearRatios(j), mus(i));
-      end
-      plot(GearRatios, MaxSpeeds)
+
+    for i = 1:length(bestRatios)
+      plot(bestRatios(i), maxSpeeds(i))
     end
 
     xlabel('Gear Ratio');
@@ -345,16 +387,14 @@ function me71transmission
   end
 
 
-  function plotFastest250(GearRatios,mus)
+  function plotFastest250(bestRatios, minTimes)
     % Second plot Alex created for calculating shift points
 
     figure('Name','Times to 250rpm for various gear ratios')
     hold on
-    for i = 1:length(mus)
-      for j = 1:length(GearRatios)
-        timeTo250(j) = TimeTo250RPM(GearRatios(j), mus(i));
-      end
-      plot(GearRatios, timeTo250)
+
+    for i = 1:length(bestRatios)
+      plot(bestRatios(i), minTimes(i))
     end
 
     xlabel('Gear Ratio');
